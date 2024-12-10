@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <div class = "navbar"></div>
+    
+    <title>Pac-Man Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            height: 100vh;
+        }
+        canvas {
+            border: 1px solid white;
+            background-color: black;
+        }
+        .game-info {
+            color: white;
+            position: absolute;
+            top: 10px;
+            text-align: center;
+        }
+        .game-info h1 {
+            font-size: 30px;
+            margin: 0;
+        }
+        .game-info p {
+            font-size: 18px;
+        }
+        #gameCanvas {
+            border: 2px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" style="color: white;">Home</a>
+
+<div class="game-info">
+    <h1>Pac-Man Game</h1>
+    <p>Use arrow keys to move Pac-Man</p>
+    <p>Score: <span id="score">0</span></p>
+    <button id="restartBtn" style="display: none;">Restart</button>
+</div>
+
+<canvas id="gameCanvas" width="400" height="400"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gridSize = 20;
+    const canvasSize = 400;
+    const pacManRadius = gridSize / 2;
+    const ghostRadius = 12;
+    let score = 0;
+    let pacMan = { x: 180, y: 180, dx: gridSize, dy: 0 }; // Pac-Man's initial position and movement
+    let ghosts = [
+        { x: 100, y: 100, dx: gridSize, dy: 0 },
+        { x: 300, y: 100, dx: -gridSize, dy: 0 },
+        { x: 100, y: 300, dx: gridSize, dy: 0 },
+        { x: 300, y: 300, dx: -gridSize, dy: 0 }
+    ];
+    let walls = [
+        // Simple walls for Pac-Man to navigate
+        { x: 0, y: 0, width: canvasSize, height: gridSize },
+        { x: 0, y: canvasSize - gridSize, width: canvasSize, height: gridSize },
+        { x: 0, y: 0, width: gridSize, height: canvasSize },
+        { x: canvasSize - gridSize, y: 0, width: gridSize, height: canvasSize }
+    ];
+    let dots = [];  // Locations for the dots (food)
+
+    let gameOver = false;
+
+    // Directions
+    const directions = {
+        up: { dx: 0, dy: -gridSize },
+        down: { dx: 0, dy: gridSize },
+        left: { dx: -gridSize, dy: 0 },
+        right: { dx: gridSize, dy: 0 }
+    };
+
+    // Initialize the game
+    function initGame() {
+        score = 0;
+        pacMan = { x: 180, y: 180, dx: gridSize, dy: 0 };
+        ghosts = [
+            { x: 100, y: 100, dx: gridSize, dy: 0 },
+            { x: 300, y: 100, dx: -gridSize, dy: 0 },
+            { x: 100, y: 300, dx: gridSize, dy: 0 },
+            { x: 300, y: 300, dx: -gridSize, dy: 0 }
+        ];
+        dots = [];
+        for (let x = gridSize; x < canvasSize - gridSize; x += gridSize) {
+            for (let y = gridSize; y < canvasSize - gridSize; y += gridSize) {
+                dots.push({ x: x, y: y });
+            }
+        }
+        gameOver = false;
+        document.getElementById('restartBtn').style.display = 'none';
+        gameLoop();
+    }
+
+    // Game Loop
+    function gameLoop() {
+        if (gameOver) return;
+
+        ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+        // Draw walls
+        ctx.fillStyle = 'blue';
+        walls.forEach(wall => ctx.fillRect(wall.x, wall.y, wall.width, wall.height));
+
+        // Draw dots
+        ctx.fillStyle = 'yellow';
+        dots.forEach(dot => ctx.beginPath() && ctx.arc(dot.x, dot.y, 5, 0, 2 * Math.PI) && ctx.fill());
+
+        // Move Pac-Man
+        pacMan.x += pacMan.dx;
+        pacMan.y += pacMan.dy;
+
+        // Check for collisions with walls
+        if (checkWallCollision(pacMan)) {
+            pacMan.x -= pacMan.dx;
+            pacMan.y -= pacMan.dy;
+        }
+
+        // Draw Pac-Man
+        ctx.beginPath();
+        ctx.arc(pacMan.x + pacManRadius, pacMan.y + pacManRadius, pacManRadius, 0.2 * Math.PI, 1.8 * Math.PI); 
+        ctx.lineTo(pacMan.x + pacManRadius, pacMan.y + pacManRadius);
+        ctx.fillStyle = 'yellow';
+        ctx.fill();
+
+        // Check if Pac-Man eats a dot
+        checkDotCollision();
+
+        // Move ghosts
+        ghosts.forEach(ghost => {
+            ghost.x += ghost.dx;
+            ghost.y += ghost.dy;
+            if (checkWallCollision(ghost)) {
+                ghost.dx = -ghost.dx;
+                ghost.dy = -ghost.dy;
+            }
+            ctx.beginPath();
+            ctx.arc(ghost.x + ghostRadius, ghost.y + ghostRadius, ghostRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+        });
+
+        // Check if Pac-Man collides with ghosts
+        checkGhostCollision();
+
+        // Update score
+        document.getElementById('score').textContent = score;
+
+        setTimeout(gameLoop, 100);
+    }
+
+    // Collision detection with walls
+    function checkWallCollision(character) {
+        return walls.some(wall => {
+            return character.x < wall.x + wall.width &&
+                character.x + gridSize > wall.x &&
+                character.y < wall.y + wall.height &&
+                character.y + gridSize > wall.y;
+        });
+    }
+
+    // Check if Pac-Man eats a dot
+    function checkDotCollision() {
+        for (let i = 0; i < dots.length; i++) {
+            if (pacMan.x + pacManRadius * 2 > dots[i].x && pacMan.x < dots[i].x + gridSize &&
+                pacMan.y + pacManRadius * 2 > dots[i].y && pacMan.y < dots[i].y + gridSize) {
+                dots.splice(i, 1); // Remove the dot
+                score += 10;
+                break;
+            }
+        }
+    }
+
+    // Check for ghost collision
+    function checkGhostCollision() {
+        ghosts.forEach(ghost => {
+            if (Math.abs(pacMan.x - ghost.x) < ghostRadius * 2 && Math.abs(pacMan.y - ghost.y) < ghostRadius * 2) {
+                gameOver = true;
+                document.getElementById('restartBtn').style.display = 'block';
+                ctx.fillStyle = 'white';
+                ctx.font = '30px Arial';
+                ctx.fillText('Game Over!', canvasSize / 4, canvasSize / 2);
+            }
+        });
+    }
+
+    // Key down event for controlling Pac-Man
+    document.addEventListener('keydown', function(event) {
+        if (gameOver) return;
+
+        switch (event.key) {
+            case 'ArrowUp':
+                pacMan.dx = 0;
+                pacMan.dy = -gridSize;
+                break;
+            case 'ArrowDown':
+                pacMan.dx = 0;
+                pacMan.dy = gridSize;
+                break;
+            case 'ArrowLeft':
+                pacMan.dx = -gridSize;
+                pacMan.dy = 0;
+                break;
+            case 'ArrowRight':
+                pacMan.dx = gridSize;
+                pacMan.dy = 0;
+                break;
+        }
+    });
+
+    // Restart game
+    document.getElementById('restartBtn').addEventListener('click', initGame);
+
+    // Start the game
+    initGame();
+</script>
+
+</body>
+</html>
+
